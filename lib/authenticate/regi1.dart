@@ -69,10 +69,16 @@ class _LoginUserState extends State<LoginUser> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Login Page'),
+          backgroundColor: Colors.purple,
+          // Set the background color to purple
         ),
+
+        backgroundColor: Color.fromARGB(255, 220, 234,
+            224), // Set the background color of the scaffold to purple
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

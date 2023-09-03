@@ -82,12 +82,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showDonorsDialog(List<String> donorInfoList) {
+  void _showDonorsDialog(List<String> donorInfoList, String name) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Donors List'),
+          title: Text('$name List'),
           content: SizedBox(
             width: double.maxFinite,
             height: 300, // Set the maximum height for the content
@@ -182,10 +182,10 @@ class _HomePageState extends State<HomePage> {
       // Split the result into a list of lines (each line contains donor info)
       final donorInfoList = result.split('\n');
 
-      _showDonorsDialog(donorInfoList);
+      _showDonorsDialog(donorInfoList, 'Donors');
 
       setState(() {
-        searchResult = result;
+        // searchResult = result;
       });
     } else {
       setState(() {
@@ -200,10 +200,10 @@ class _HomePageState extends State<HomePage> {
       final result = await searchRecipient(selectedBloodGroup!);
       final donorInfoList = result.split('\n');
 
-      _showDonorsDialog(donorInfoList);
+      _showDonorsDialog(donorInfoList, 'Recivers');
 
       setState(() {
-        searchResult = result;
+        // searchResult = result;
       });
     } else {
       setState(() {
@@ -336,7 +336,7 @@ class _HomePageState extends State<HomePage> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _searchRecipient,
-                      child: const Text('Recipient'),
+                      child: const Text('Search Recipient'),
                     ),
                   ),
                 ],
@@ -344,7 +344,7 @@ class _HomePageState extends State<HomePage> {
             ),
 
             // Placeholder for displaying search results
-            Text(searchResult ?? ''),
+            // Text(searchResult ?? ''),
           ],
         ),
       ),
