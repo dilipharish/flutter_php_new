@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_php_new/updateprofilescreen.dart';
+import 'package:flutter_php_new/authenticate/logout.dart';
+
+import 'package:flutter_php_new/provider.dart';
+import 'package:flutter_php_new/authenticate/resetpassword.dart';
+import 'package:flutter_php_new/authenticate/updateprofilescreen.dart';
 import 'package:mysql1/mysql1.dart';
+import 'package:provider/provider.dart';
 import 'constants.dart';
 
 class HomePage extends StatefulWidget {
@@ -35,10 +40,12 @@ class _HomePageState extends State<HomePage> {
 
       if (queryResult.isNotEmpty) {
         final user = queryResult.first;
-        setState(() {
-          userName = user['name'];
-          userEmail = user['email'];
-        });
+        final userData = UserData(
+          name: user['name'],
+          email: user['email'],
+        );
+        Provider.of<UserDataProvider>(context, listen: false)
+            .updateUserData(userData);
       }
 
       await conn.close();
@@ -54,6 +61,22 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  // void _logout() {
+  //   // Save any updates (if needed)
+  //   // For example, you can update the user's data to a server
+
+  //   // Clear user data (if needed)
+  //   // Provider.of<UserDataProvider>(context, listen: false).clearUserData();
+
+  //   // Navigate back to the login screen
+  //   Navigator.of(context).pushReplacement(
+  //     MaterialPageRoute(
+  //       builder: (context) =>
+  //           LoginUser(), // Replace with your login screen widget
+  //     ),
+  //   );
+  // }
 
   Future<void> _resetPassword() async {
     String currentPassword = '';
@@ -165,10 +188,62 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Home Page'),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
+              child: Text('Menu'),
+              decoration: BoxDecoration(
+                color: Color.fromARGB(255, 162, 121, 243),
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        EditProfilePage(userId: widget.userId),
+                  ),
+                );
+              },
+              child: ListTile(
+                title: Text('Edit Profile'),
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ResetPasswordPage(userId: widget.userId),
+                  ),
+                );
+              },
+              child: ListTile(
+                title: Text('Reset Password'),
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => LogoutPage(),
+                  ),
+                );
+              },
+              child: ListTile(
+                title: Text('Logout'),
+              ),
+            ),
+          ],
+        ),
       ),
       body: Center(
         child: Column(
@@ -176,15 +251,15 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text('User ID: ${widget.userId}'),
-            Text('Name: $userName'),
-            Text('Email: $userEmail'),
-            ElevatedButton(
-              onPressed: _navigateToEditProfile, // Navigate to EditProfilePage
-              child: Text('Edit Profile'),
-            ),
-            ElevatedButton(
-              onPressed: _resetPassword, // Show reset password dialog
-              child: Text('Reset Password'),
+            Consumer<UserDataProvider>(
+              builder: (context, userDataProvider, child) {
+                return Column(
+                  children: [
+                    Text('Name: ${userDataProvider.userData.name}'),
+                    Text('Email: ${userDataProvider.userData.email}'),
+                  ],
+                );
+              },
             ),
           ],
         ),

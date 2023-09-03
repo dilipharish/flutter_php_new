@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_php_new/regi1.dart'; // Import your LoginUser widget
+import 'package:flutter_php_new/provider.dart';
+import 'package:flutter_php_new/regi1.dart';
+import 'package:provider/provider.dart'; // Import your LoginUser widget
 // import 'package:flutter_php_new/registration1.dart'; // Import your RegistrationPage widget
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => UserDataProvider(),
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -14,9 +21,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Your App Title',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.purple,
       ),
-      home: const LoginUser(), // Set the default home page to LoginUser
+      home: const LoginUser(),
+      debugShowCheckedModeBanner: false,
+      // Set the default home page to LoginUser
     );
   }
 }
