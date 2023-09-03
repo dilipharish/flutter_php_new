@@ -2,15 +2,7 @@
 
 import 'package:mysql1/mysql1.dart';
 import 'constants.dart';
-
-// var settings = ConnectionSettings(
-//   host: '192.168.119.180',
-//   port: 3306,
-//   user: 'root',
-//   password: '93420D@l',
-//   db: 'flutter_test',
-// );
-// Your MySQL connection settings
+import 'package:flutter_php_new/show2.dart';
 
 Future<void> saveBloodGroup(int userId, String bloodGroup) async {
   try {
@@ -28,7 +20,7 @@ Future<void> saveBloodGroup(int userId, String bloodGroup) async {
 Future<String> searchDonor(String selectedBloodGroup) async {
   try {
     final conn = await MySqlConnection.connect(settings);
-    final donors = <String>{};
+    final donorsInfo = <String>[];
 
     final bloodTypeMap = {
       'A+': ['A+', 'A-', 'O+', 'O-'],
@@ -45,22 +37,22 @@ Future<String> searchDonor(String selectedBloodGroup) async {
 
     for (final bloodType in canDonateTo!) {
       final queryResult = await conn.query(
-        'SELECT name FROM users WHERE blood_group = ?',
+        'SELECT id, name, blood_group FROM users WHERE blood_group = ?',
         [bloodType],
       );
 
       for (final row in queryResult) {
-        donors.add(row['name']);
+        final donorInfo = '${row['id']},${row['name']}, ${row['blood_group']}';
+        donorsInfo.add(donorInfo);
       }
     }
 
-    final donorCount = donors.length;
-
     await conn.close();
 
-    if (donorCount > 0) {
-      final donorList = donors.join(', ');
-      return 'Compatible Donors for blood group $selectedBloodGroup ($donorCount donors): $donorList';
+    if (donorsInfo.isNotEmpty) {
+      final donorList =
+          donorsInfo.join('\n'); // Separate each donor's info with a newline
+      return '$donorList';
     } else {
       return 'No donors found for blood group $selectedBloodGroup';
     }
@@ -90,12 +82,16 @@ Future<String> searchRecipient(String selectedBloodGroup) async {
 
     for (final recipientBloodType in compatibleRecipients!) {
       final queryResult = await conn.query(
-        'SELECT name FROM users WHERE blood_group = ?',
+        'SELECT id, name, blood_group FROM users WHERE blood_group = ?',
         [recipientBloodType],
       );
 
+      // for (final row in queryResult) {
+      //   recipients.add(row['name']);
+      // }
       for (final row in queryResult) {
-        recipients.add(row['name']);
+        final recipInfo = '${row['id']},${row['name']}, ${row['blood_group']}';
+        recipients.add(recipInfo);
       }
     }
 
@@ -104,8 +100,10 @@ Future<String> searchRecipient(String selectedBloodGroup) async {
     await conn.close();
 
     if (recipientCount > 0) {
-      final recipientList = recipients.join(', ');
-      return 'Compatible Recipients for blood group $selectedBloodGroup ($recipientCount recipients): $recipientList';
+      final recipientList =
+          recipients.join('\n'); // Separate each donor's info with a newline
+
+      return '$recipientList';
     } else {
       return 'No compatible recipients found for blood group $selectedBloodGroup';
     }
