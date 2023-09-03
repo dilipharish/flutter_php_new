@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_php_new/provider.dart';
-import 'package:flutter_php_new/regi1.dart';
+import 'package:flutter_php_new/authenticate/regi1.dart';
 import 'package:provider/provider.dart'; // Import your LoginUser widget
 // import 'package:flutter_php_new/registration1.dart'; // Import your RegistrationPage widget
 
@@ -8,7 +8,7 @@ void main() {
   runApp(
     ChangeNotifierProvider(
       create: (context) => UserDataProvider(),
-      child: MyApp(),
+      child: const MyApp(),
     ),
   );
 }

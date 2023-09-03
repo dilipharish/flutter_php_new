@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:flutter_php_new/homepage.dart';
 import 'package:flutter_php_new/authenticate/registration1.dart';
@@ -57,7 +59,7 @@ class _LoginUserState extends State<LoginUser> {
   void _navigateToRegistrationPage() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => RegistrationPage(
+        builder: (context) => const RegistrationPage(
           title: 'Registeration page',
         ),
       ),
@@ -69,7 +71,7 @@ class _LoginUserState extends State<LoginUser> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: Text('Login Page'),
+          title: const Text('Login Page'),
         ),
         body: Center(
           child: Column(
@@ -78,14 +80,14 @@ class _LoginUserState extends State<LoginUser> {
             children: [
               TextField(
                 controller: email,
-                decoration: InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(labelText: 'Email'),
               ),
               TextField(
                 controller: password,
                 obscureText: true,
-                decoration: InputDecoration(labelText: 'Password'),
+                decoration: const InputDecoration(labelText: 'Password'),
               ),
-              ElevatedButton(onPressed: login, child: Text('Login')),
+              ElevatedButton(onPressed: login, child: const Text('Login')),
               Text(status),
             ],
           ),

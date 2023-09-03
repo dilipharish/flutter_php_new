@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_php_new/authenticate/logout.dart';
-
 import 'package:flutter_php_new/provider.dart';
 import 'package:flutter_php_new/authenticate/resetpassword.dart';
 import 'package:flutter_php_new/authenticate/updateprofilescreen.dart';
 import 'package:mysql1/mysql1.dart';
 import 'package:provider/provider.dart';
 import 'constants.dart';
+import 'bloodfunctions.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key, required this.userId}) : super(key: key);
@@ -20,6 +20,20 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String userName = '';
   String userEmail = '';
+  String? selectedBloodGroup; // New variable to store selected blood group
+  String? searchResult = ''; // Placeholder for search result
+
+  // Available blood group options
+  final List<String> bloodGroupOptions = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
+  ];
 
   @override
   void initState() {
@@ -54,151 +68,58 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _navigateToEditProfile() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => EditProfilePage(userId: widget.userId),
+  Future<void> _saveBloodGroup(String bloodGroup) async {
+    // Call the function from blood_functions.dart
+    await saveBloodGroup(widget.userId, bloodGroup);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Blood group saved successfully.'),
       ),
     );
   }
 
-  // void _logout() {
-  //   // Save any updates (if needed)
-  //   // For example, you can update the user's data to a server
+  Future<void> _searchDonor() async {
+    if (selectedBloodGroup != null) {
+      // Call the function from blood_functions.dart
+      final result = await searchDonor(selectedBloodGroup!);
 
-  //   // Clear user data (if needed)
-  //   // Provider.of<UserDataProvider>(context, listen: false).clearUserData();
-
-  //   // Navigate back to the login screen
-  //   Navigator.of(context).pushReplacement(
-  //     MaterialPageRoute(
-  //       builder: (context) =>
-  //           LoginUser(), // Replace with your login screen widget
-  //     ),
-  //   );
-  // }
-
-  Future<void> _resetPassword() async {
-    String currentPassword = '';
-    String newPassword = '';
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Reset Password'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                obscureText: true,
-                onChanged: (value) {
-                  currentPassword = value;
-                },
-                decoration: InputDecoration(labelText: 'Current Password'),
-              ),
-              TextFormField(
-                obscureText: true,
-                onChanged: (value) {
-                  newPassword = value;
-                },
-                decoration: InputDecoration(labelText: 'New Password'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                // Validate current password against the user's actual password
-                if (await _validateCurrentPassword(currentPassword)) {
-                  if (newPassword.isNotEmpty) {
-                    // Update the user's password
-                    await _updatePassword(newPassword);
-                    Navigator.of(context).pop();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('New password cannot be empty.'),
-                      ),
-                    );
-                  }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Incorrect current password.'),
-                    ),
-                  );
-                }
-              },
-              child: Text('Reset Password'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<bool> _validateCurrentPassword(String currentPassword) async {
-    try {
-      // Your MySQL connection settings
-      settings;
-
-      final conn = await MySqlConnection.connect(settings);
-      final queryResult = await conn.query(
-        'SELECT * FROM users WHERE id = ? AND password = ?',
-        [widget.userId, currentPassword],
-      );
-
-      await conn.close();
-
-      return queryResult.isNotEmpty;
-    } catch (e) {
-      print("Exception in validating current password: $e");
-      return false;
+      setState(() {
+        searchResult = result;
+      });
+    } else {
+      setState(() {
+        searchResult = 'Please select a blood group to search.';
+      });
     }
   }
 
-  Future<void> _updatePassword(String newPassword) async {
-    try {
-      // Your MySQL connection settings
-      settings;
+  Future<void> _searchRecipient() async {
+    if (selectedBloodGroup != null) {
+      // Call the function from blood_functions.dart
+      final result = await searchRecipient(selectedBloodGroup!);
 
-      final conn = await MySqlConnection.connect(settings);
-      final queryResult = await conn.query(
-        'UPDATE users SET password = ? WHERE id = ?',
-        [newPassword, widget.userId],
-      );
-
-      await conn.close();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Password updated successfully.'),
-        ),
-      );
-    } catch (e) {
-      print("Exception in updating password: $e");
+      setState(() {
+        searchResult = result;
+      });
+    } else {
+      setState(() {
+        searchResult = 'Please select a blood group to search.';
+      });
     }
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Home Page'),
+        title: const Text('Home Page'),
       ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DrawerHeader(
+            const DrawerHeader(
               child: Text('Menu'),
               decoration: BoxDecoration(
                 color: Color.fromARGB(255, 162, 121, 243),
@@ -213,7 +134,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               },
-              child: ListTile(
+              child: const ListTile(
                 title: Text('Edit Profile'),
               ),
             ),
@@ -226,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               },
-              child: ListTile(
+              child: const ListTile(
                 title: Text('Reset Password'),
               ),
             ),
@@ -238,7 +159,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               },
-              child: ListTile(
+              child: const ListTile(
                 title: Text('Logout'),
               ),
             ),
@@ -261,6 +182,65 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            // Dropdown menu for selecting blood group
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: DropdownButton<String>(
+                hint: Text('Select Blood Group'),
+                value: selectedBloodGroup,
+                items: bloodGroupOptions.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() {
+                    selectedBloodGroup = newValue;
+                  });
+                },
+              ),
+            ),
+            // Button to save selected blood group
+            ElevatedButton(
+              onPressed: () {
+                if (selectedBloodGroup != null) {
+                  _saveBloodGroup(selectedBloodGroup!);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select a blood group.'),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save Blood Group'),
+            ),
+            // Button to search for donors
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _searchDonor,
+                      child: const Text('Search Donor'),
+                    ),
+                  ),
+                  // Add some spacing between the buttons
+                  const SizedBox(width: 16.0),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _searchRecipient,
+                      child: const Text('Recipient'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Placeholder for displaying search results
+            Text(searchResult ?? ''),
           ],
         ),
       ),

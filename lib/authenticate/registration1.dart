@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously, avoid_print, unnecessary_string_interpolations, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_php_new/constants.dart';
 import 'package:flutter_php_new/homepage.dart';
@@ -88,16 +90,16 @@ class _RegistrationPageState extends State<RegistrationPage> {
             ),
             TextFormField(
               controller: name,
-              decoration: InputDecoration(labelText: 'Name'),
+              decoration: const InputDecoration(labelText: 'Name'),
             ),
             TextFormField(
               controller: email,
-              decoration: InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
             TextFormField(
               controller: password,
               obscureText: true,
-              decoration: InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(labelText: 'Password'),
             ),
             Text(
               '$result',

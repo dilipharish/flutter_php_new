@@ -1,3 +1,5 @@
+// ignore_for_file: use_key_in_widget_constructors
+
 import 'package:flutter/material.dart';
 
 import 'regi1.dart';
@@ -7,15 +9,15 @@ class LogoutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Logout'),
+        title: const Text('Logout'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text('Are you sure you want to logout?'),
-            SizedBox(height: 20),
+            const Text('Are you sure you want to logout?'),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 // Perform logout actions here, e.g., clearing user data
@@ -26,11 +28,11 @@ class LogoutPage extends StatelessWidget {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
                     builder: (context) =>
-                        LoginUser(), // Replace with your login screen widget
+                        const LoginUser(), // Replace with your login screen widget
                   ),
                 );
               },
-              child: Text('Logout'),
+              child: const Text('Logout'),
             ),
           ],
         ),
