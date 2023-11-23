@@ -1,8 +1,9 @@
-// ignore_for_file: use_key_in_widget_constructors
-
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_php_new/provider.dart';
+import 'package:provider/provider.dart';
 
-import 'regi1.dart';
+import 'login.dart';
 
 class LogoutPage extends StatelessWidget {
   @override
@@ -22,15 +23,14 @@ class LogoutPage extends StatelessWidget {
               onPressed: () {
                 // Perform logout actions here, e.g., clearing user data
                 // Replace this with your actual logout logic
-                // Example: Provider.of<UserDataProvider>(context, listen: false).clearUserData();
+                final userDataProvider =
+                    Provider.of<UserDataProvider>(context, listen: false);
 
-                // Navigate back to the login screen
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const LoginUser(), // Replace with your login screen widget
-                  ),
-                );
+                // Clear user data using the clearUserData method
+                userDataProvider.clearUserData();
+
+                // Exit the app completely
+                exit(0);
               },
               child: const Text('Logout'),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_php_new/admin_ops/admin_home.dart';
 import 'package:flutter_php_new/provider.dart';
-import 'package:flutter_php_new/authenticate/regi1.dart';
+import 'package:flutter_php_new/authenticate/login.dart';
 import 'package:provider/provider.dart'; // Import your LoginUser widget
 // import 'package:flutter_php_new/registration1.dart'; // Import your RegistrationPage widget
 
@@ -19,10 +20,15 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Your App Title',
+      title: 'Organ Donation',
       theme: ThemeData(
-        primarySwatch: Colors.purple,
+        primarySwatch: Colors.red,
       ),
+      routes: {
+        '/login': (context) => LoginUser(),
+        '/admin': (context) => AdminScreen(),
+        // ... other routes ...
+      },
       home: const LoginUser(),
       debugShowCheckedModeBanner: false,
       // Set the default home page to LoginUser

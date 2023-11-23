@@ -36,6 +36,21 @@ dependencies:
   cupertino_icons: ^1.0.2
   mysql1: ^0.20.0
   provider: ^6.0.5
+  file_picker: ^5.5.0
+  intl: ^0.18.1
+  curved_navigation_bar: ^1.0.3
+  animated_splash_screen: ^1.3.0
+  lottie: ^2.6.0
+  http: ^1.1.0
+  fl_chart: ^0.64.0
+  pdf: ^3.1.0
+  syncfusion_flutter_pdf: ^23.1.39
+
+  # save file
+  path_provider: ^2.0.5
+
+  # open pdf document
+  open_file: ^3.1.0
 
 dev_dependencies:
   flutter_test:
@@ -59,8 +74,47 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  assets:
+    - assets/images/bloodman.jpg
+    - assets/animation_lnj2ixl8.json
+    - assets/Flag_of_India.webp
+    - assets/Indian_Flag.png
+    - assets/animation_lnlpre1y.json
+    - assets/doctor.json
+    - assets/doctor_consult.json
+    - assets/success.json
+    - assets/blood_donation.json
+    - assets/liver.json
+    - assets/kidney.json
+    - assets/blood_drop.json
+    - assets/doctor_screen_upload.json
+    - assets/doctor_setascope.json
+    - assets/organ_don_save_lifes.png
+    - assets/support_organ_donation.jpg
+    - assets/organ_image.jpg
+    - assets/serach_lottie.json
+    - assets/history1.json
+    - assets/admin_doctor.json
+    - assets/admin_main_branch.json
+    - assets/admin_branch_right.json
+    - assets/admin_branch_left.json
+    - assets/organ_donation_best.json
+    - assets/admin_lady.json
+    - assets/admin_graph.json
+    - assets/admin_branch_loc_mob.json
+    - assets/admin_branch_woman.json
+    - assets/admin_men.json
+    - assets/admin_doctor_injection.json
+    - assets/admin_nurse.json
+    - assets/organ_donation_karna.jpg
+    - assets/karna_child.jpg
+    - assets/karna_kavach.jpg
+    - assets/karna.webp
+    - assets/hand_shaking.json
+    - assets/fear_of_doctor.json
+    - assets/users_neither_donors_nor_receivers.json
+    - assets/admin_doctor_con.json
+    # - assets/admin.json
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

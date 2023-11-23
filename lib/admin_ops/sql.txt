@@ -1,0 +1,41 @@
+-- Drop the existing procedure if it exists
+DROP PROCEDURE IF EXISTS DeleteDoctorAndRedistributeConsultations;
+
+DELIMITER //
+
+CREATE PROCEDURE DeleteDoctorAndRedistributeConsultations(IN deletedDoctorId INT)
+BEGIN
+    DECLARE targetDoctorId INT;
+    DECLARE userCount INT;
+    
+    -- Check if the deleted doctor has consultations with users
+    SET userCount = (SELECT COUNT(DISTINCT user_id) FROM consultation WHERE doctor_id = deletedDoctorId);
+    
+    -- Calculate the target number of consultations for the remaining doctors
+    IF userCount > 0 THEN
+        -- User is consulted by other doctors (permanent or temporary)
+        SET targetDoctorId = (SELECT doctor_id FROM consultation 
+                              WHERE user_id NOT IN (SELECT user_id FROM consultation WHERE doctor_id IN (2, 5, 6, 9, 10)) 
+                              AND doctor_id IN (2, 5, 6, 9, 10) 
+                              LIMIT 1);
+    ELSE
+        -- User is only consulted by the deleted temporary doctor
+        
+        -- Check if there are any permanent doctors available
+        SET targetDoctorId = (SELECT doctor_id FROM doctor 
+                              WHERE doctor_id IN (2, 5, 6, 9, 10) 
+                              AND doctor_id NOT IN (SELECT DISTINCT doctor_id FROM consultation)
+                              LIMIT 1);
+    END IF;
+    
+    -- Redistribute consultations to the target doctor
+    UPDATE consultation SET doctor_id = targetDoctorId WHERE doctor_id = deletedDoctorId;
+    
+    -- Delete the doctor's consultations
+    DELETE FROM consultation WHERE doctor_id = deletedDoctorId;
+    
+    -- Delete the doctor
+    DELETE FROM doctor WHERE doctor_id = deletedDoctorId;
+END//
+
+DELIMITER ;

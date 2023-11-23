@@ -1,0 +1,210 @@
+GetCompatibleDonorsForBloodGroup
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE donor_id INT;
+    DECLARE name VARCHAR(255);
+    DECLARE phone_number VARCHAR(20);
+    DECLARE address VARCHAR(255);
+    DECLARE age INT;
+    DECLARE omedical_history TEXT;
+    DECLARE obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE result_json JSON DEFAULT JSON_ARRAY();
+    
+    -- Declare cursor for selecting compatible donors
+    DECLARE compatible_donors CURSOR FOR
+        SELECT d.OID, u.name, u.phone_number, u.address, YEAR(CURDATE()) - YEAR(u.date_of_birth) AS age, d.omedical_history, d.obloodgroup
+        FROM organ d
+        JOIN Users u ON d.oduid = u.uid
+        WHERE d.odonor_status = 'live donor' AND (
+            (blood_group = 'A+' AND d.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+            (blood_group = 'A-' AND d.obloodgroup IN ('A-', 'O-')) OR
+            (blood_group = 'B+' AND d.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+            (blood_group = 'B-' AND d.obloodgroup IN ('B-', 'O-')) OR
+            (blood_group = 'O+' AND d.obloodgroup IN ('O+', 'O-')) OR
+            (blood_group = 'O-' AND d.obloodgroup = 'O-') OR
+            (blood_group = 'AB+' AND d.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+            (blood_group = 'AB-' AND d.obloodgroup IN ('A-', 'B-', 'O-', 'AB-'))
+        );
+    
+    -- Declare CONTINUE HANDLER for NOT FOUND condition
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+    
+    -- Open the cursor
+    OPEN compatible_donors;
+    
+    -- Loop through the cursor results and add to JSON array
+    donor_loop: LOOP
+        FETCH compatible_donors INTO donor_id, name, phone_number, address, age, omedical_history, obloodgroup;
+        IF done = 1 THEN
+            LEAVE donor_loop;
+        END IF;
+        -- Add donor information to JSON array
+        SET result_json = JSON_ARRAY_APPEND(result_json, '$', JSON_OBJECT(
+            'donor_id', donor_id,
+            'name', name,
+            'phone_number', phone_number,
+            'address', address,
+            'age', age,
+            'omedical_history', omedical_history,
+            'obloodgroup', obloodgroup
+        ));
+    END LOOP;
+    
+    -- Close the cursor
+    CLOSE compatible_donors;
+    
+    -- Return the JSON array
+    RETURN result_json;
+END
+
+
+
+getCompatibleOrganDonors
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE donor_id INT;
+    DECLARE name VARCHAR(255);
+    DECLARE phone_number VARCHAR(20);
+    DECLARE address VARCHAR(255);
+    DECLARE omedical_history TEXT;
+    DECLARE obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE organ_ohla VARCHAR(255);
+    DECLARE organ_obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE donor_age INT;  -- Declare donor_age variable outside the cursor
+
+    DECLARE result_json JSON DEFAULT JSON_ARRAY();
+
+    -- Declare cursor for selecting compatible organ donors
+    DECLARE compatible_organ_donors CURSOR FOR
+        SELECT d.OID, u.name, u.phone_number, u.address, YEAR(CURDATE()) - YEAR(u.date_of_birth) AS donor_age, d.omedical_history, d.obloodgroup, d.ohla
+        FROM organ d
+        JOIN users u ON d.oduid = u.uid
+        WHERE d.organ_availability = 1 
+            AND d.organ_name = organName
+            AND ABS(YEAR(CURDATE()) - YEAR(u.date_of_birth) - donorAge) <= 
+                CASE
+                    WHEN donorAge < 25 THEN 10
+                    ELSE 20
+                END
+            AND (
+                (bloodGroup = 'O+' AND d.obloodgroup IN ('O+', 'O-')) OR
+                (bloodGroup = 'O-' AND d.obloodgroup = 'O-') OR
+                (bloodGroup = 'A+' AND d.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+                (bloodGroup = 'A-' AND d.obloodgroup IN ('A-', 'O-')) OR
+                (bloodGroup = 'B+' AND d.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+                (bloodGroup = 'B-' AND d.obloodgroup IN ('B-', 'O-')) OR
+                (bloodGroup = 'AB+' AND d.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+                (bloodGroup = 'AB-' AND d.obloodgroup IN ('A-', 'B-', 'O-', 'AB-'))
+            );
+
+    -- Declare CONTINUE HANDLER for NOT FOUND condition
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    -- Open the cursor
+    OPEN compatible_organ_donors;
+
+    -- Loop through the cursor results and add to JSON array
+    organ_donor_loop:LOOP
+        FETCH compatible_organ_donors INTO donor_id, name, phone_number, address, donor_age, omedical_history, obloodgroup, organ_ohla; -- Use donor_age instead of age
+        IF done = 1 THEN
+            LEAVE organ_donor_loop;
+        END IF;
+        -- Add donor and organ information to JSON array
+        SET result_json = JSON_ARRAY_APPEND(result_json, '$', JSON_OBJECT(
+            'donor_id', donor_id,
+            'name', name,
+            'phone_number', phone_number,
+            'address', address,
+            'age', donor_age,  -- Use donor_age instead of age
+            'omedical_history', omedical_history,
+            'obloodgroup', obloodgroup,
+            'organ_ohla', organ_ohla,
+            'organ_obloodgroup', organ_obloodgroup
+        ));
+    END LOOP;
+
+    -- Close the cursor
+    CLOSE compatible_organ_donors;
+
+    -- Return the JSON array
+    RETURN result_json;
+END
+
+
+Functions ended here
+
+DeleteBranch
+BEGIN
+    -- Declare a variable to store the branch ID to be updated in Available table
+    DECLARE mainBranchId INT;
+
+    -- Check if the branchId is 1 (main branch)
+    IF branchId <> 1 THEN
+        -- Get the ID of the main branch
+        SET mainBranchId = (SELECT bid FROM Branch WHERE bid = 1);
+
+        -- Update the available table, set branch_id to 1 (main branch)
+        UPDATE Available SET branch_id = mainBranchId WHERE branch_id = branchId;
+        
+        -- Delete the branch
+        DELETE FROM Branch WHERE bid = branchId;
+    END IF;
+END
+
+
+DeleteDoctorAndRedistributeConsultations
+BEGIN
+    DECLARE targetDoctorId INT;
+
+    -- Find the permanent doctor with the minimum number of consultations
+    SET targetDoctorId = (
+        SELECT doctor_id 
+        FROM doctor 
+        WHERE doctor_id IN (2, 5, 6, 9, 10)
+        ORDER BY (
+            SELECT COUNT(*) 
+            FROM consultation 
+            WHERE doctor_id = doctor.doctor_id
+        ) ASC
+        LIMIT 1
+    );
+
+    -- Redistribute consultations to the target doctor
+    UPDATE consultation SET doctor_id = targetDoctorId WHERE doctor_id = deletedDoctorId;
+
+    -- Delete the doctor's consultations
+    DELETE FROM consultation WHERE doctor_id = deletedDoctorId;
+
+    -- Delete the doctor
+    DELETE FROM doctor WHERE doctor_id = deletedDoctorId;
+
+END
+
+
+GetCompatibleDonors
+BEGIN
+    SELECT d.bloodgroup, p.name, p.phone_number, p.address, YEAR(CURDATE()) - YEAR(p.date_of_birth) AS age, p.omedical_history
+    FROM Donors d
+    JOIN Users p ON d.duid = p.uid
+    WHERE d.odonor_status = 'live donor' AND (
+        (bloodGroup = 'A+' AND d.bloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+        (bloodGroup = 'A-' AND d.bloodgroup IN ('A-', 'O-')) OR
+        (bloodGroup = 'B+' AND d.bloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+        (bloodGroup = 'B-' AND d.bloodgroup IN ('B-', 'O-')) OR
+        (bloodGroup = 'O+' AND d.bloodgroup IN ('O+', 'O-')) OR
+        (bloodGroup = 'O-' AND d.bloodgroup = 'O-') OR
+        (bloodGroup = 'AB+' AND d.bloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+        (bloodGroup = 'AB-' AND d.bloodgroup IN ('A-', 'B-', 'O-', 'AB-'))
+    );
+END
+
+prcodeures ended here 
+
+
+
+package com.example.flutter_php_new
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity() {
+}

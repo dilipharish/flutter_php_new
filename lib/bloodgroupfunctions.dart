@@ -1,5 +1,7 @@
 // blood_functions.dart
 
+// ignore_for_file: avoid_print, unnecessary_string_interpolations, unused_import
+
 import 'package:mysql1/mysql1.dart';
 import 'constants.dart';
 import 'package:flutter_php_new/show2.dart';

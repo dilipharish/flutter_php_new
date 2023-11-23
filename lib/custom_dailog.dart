@@ -1,3 +1,5 @@
+// ignore_for_file: use_key_in_widget_constructors, prefer_const_constructors_in_immutables, prefer_const_literals_to_create_immutables, sized_box_for_whitespace
+
 import 'package:flutter/material.dart';
 
 class CustomDialog extends StatelessWidget {
@@ -25,9 +27,9 @@ class CustomDialog extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16.0),
         boxShadow: [
-          BoxShadow(
+          const BoxShadow(
             color: Colors.black,
-            offset: const Offset(0, 10),
+            offset: Offset(0, 10),
             blurRadius: 10.0,
           ),
         ],
@@ -39,13 +41,13 @@ class CustomDialog extends StatelessWidget {
             padding: const EdgeInsets.all(16.0),
             child: Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 8.0,
           ),
           Container(
@@ -59,14 +61,14 @@ class CustomDialog extends StatelessWidget {
               },
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 8.0,
           ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
             },
-            child: Text('Close'),
+            child: const Text('Close'),
           ),
         ],
       ),

@@ -88,7 +88,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
       final conn = await MySqlConnection.connect(settings);
       final queryResult = await conn.query(
-        'SELECT * FROM users WHERE id = ? AND password = ?',
+        'SELECT * FROM users WHERE uid = ? AND password = ?',
         [widget.userId, currentPassword],
       );
 
@@ -110,7 +110,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       final conn = await MySqlConnection.connect(settings);
       // ignore: unused_local_variable
       final queryResult = await conn.query(
-        'UPDATE users SET password = ? WHERE id = ?',
+        'UPDATE users SET password = ? WHERE uid = ?',
         [newPassword, widget.userId],
       );
 

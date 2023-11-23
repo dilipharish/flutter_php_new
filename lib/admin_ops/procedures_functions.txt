@@ -1,0 +1,563 @@
+DELIMITER //
+
+CREATE PROCEDURE DeleteBranch(IN branchId INT)
+BEGIN
+    -- Declare a variable to store the branch ID to be updated in Available table
+    DECLARE mainBranchId INT;
+
+    -- Check if the branchId is 1 (main branch)
+    IF branchId <> 1 THEN
+        -- Get the ID of the main branch
+        SET mainBranchId = (SELECT bid FROM Branch WHERE bid = 1);
+
+        -- Update the available table, set branch_id to 1 (main branch)
+        UPDATE Available SET branch_id = mainBranchId WHERE branch_id = branchId;
+        
+        -- Delete the branch
+        DELETE FROM Branch WHERE bid = branchId;
+    END IF;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE DeleteDoctorAndRedistributeConsultations(IN deletedDoctorId INT)
+BEGIN
+    DECLARE targetDoctorId INT;
+
+    -- Find the permanent doctor with the minimum number of consultations
+    SET targetDoctorId = (
+        SELECT doctor_id 
+        FROM doctor 
+        WHERE doctor_id IN (2, 5, 6, 9, 10)
+        ORDER BY (
+            SELECT COUNT(*) 
+            FROM consultation 
+            WHERE doctor_id = doctor.doctor_id
+        ) ASC
+        LIMIT 1
+    );
+
+    -- Redistribute consultations to the target doctor
+    UPDATE consultation SET doctor_id = targetDoctorId WHERE doctor_id = deletedDoctorId;
+
+    -- Delete the doctor's consultations
+    DELETE FROM consultation WHERE doctor_id = deletedDoctorId;
+
+    -- Delete the doctor
+    DELETE FROM doctor WHERE doctor_id = deletedDoctorId;
+
+END//
+
+DELIMITER ;
+
+
+
+
+DELIMITER //
+
+DELIMITER //
+
+CREATE FUNCTION GetOrganDonors(
+    p_organ_name ENUM('Left_Kidney', 'Right_Kidney', 'Eyes', 'Heart', 'Blood', 'Liver'),
+    p_blood_group ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'),
+    p_age INT
+)
+RETURNS JSON
+BEGIN
+    DECLARE max_age_difference INT;
+    DECLARE json_result JSON DEFAULT JSON_ARRAY();
+
+    -- Determine maximum age difference based on age
+    IF p_age < 25 THEN
+        SET max_age_difference = 5;
+    ELSE
+        SET max_age_difference = 20;
+    END IF;
+
+    -- Loop through the results and append to JSON array
+    donor_loop: LOOP
+        -- Variables for storing donor information
+        SET @donor_uid = NULL;
+        SET @donor_name = NULL;
+        SET @donor_age = NULL;
+        SET @donor_phone_number = NULL;
+        SET @donor_address = NULL;
+        SET @donor_organ_name = NULL;
+        SET @donor_blood_group = NULL;
+        SET @donor_hla = NULL;
+        SET @donor_medical_history = NULL;
+
+        -- Query to retrieve organ donors based on compatibility and age difference
+        SELECT u.uid, u.name, YEAR(CURDATE()) - YEAR(u.date_of_birth), u.phone_number, u.address, o.organ_name, o.obloodgroup, o.ohla, o.omedical_history
+        INTO @donor_uid, @donor_name, @donor_age, @donor_phone_number, @donor_address, @donor_organ_name, @donor_blood_group, @donor_hla, @donor_medical_history
+        FROM Users u
+        INNER JOIN Organs o ON u.uid = o.oduid
+        WHERE o.organ_name = p_organ_name
+          AND ((p_blood_group = 'A+' AND o.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+               (p_blood_group = 'A-' AND o.obloodgroup IN ('A-', 'O-')) OR
+               (p_blood_group = 'B+' AND o.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+               (p_blood_group = 'B-' AND o.obloodgroup IN ('B-', 'O-')) OR
+               (p_blood_group = 'O+' AND o.obloodgroup IN ('O+', 'O-')) OR
+               (p_blood_group = 'O-' AND o.obloodgroup = 'O-') OR
+               (p_blood_group = 'AB+' AND o.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+               (p_blood_group = 'AB-' AND o.obloodgroup IN ('A-', 'B-', 'O-', 'AB-')))
+          AND YEAR(CURDATE()) - YEAR(u.date_of_birth) BETWEEN p_age - max_age_difference AND p_age + max_age_difference;
+
+        -- Check if a donor is found
+        IF @donor_name IS NULL THEN
+            LEAVE donor_loop;
+        END IF;
+
+        -- Append donor information to JSON array
+        SET json_result = JSON_ARRAY_APPEND(json_result, '$', JSON_OBJECT(
+            'uid', @donor_uid,
+            'name', @donor_name,
+            'age', @donor_age,
+            'phone_number', @donor_phone_number,
+            'address', @donor_address,
+            'organ_name', @donor_organ_name,
+            'blood_group', @donor_blood_group,
+            'hla', @donor_hla,
+            'medical_history', @donor_medical_history
+        ));
+
+    END LOOP donor_loop;
+
+    -- Return the JSON array
+    RETURN json_result;
+END //
+
+DELIMITER ;
+
+
+
+DELIMITER //
+
+CREATE TRIGGER allow_switch_to_cardiac_or_brain_death
+BEFORE UPDATE ON your_table_name
+FOR EACH ROW
+BEGIN
+    IF NEW.odonor_status IN ('cardiac death', 'brain death') 
+    AND OLD.odonor_status = 'live donor' THEN
+        -- Allowing the switch from live donor to cardiac death or brain death
+    ELSE
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid status change: Cannot switch from cardiac death to brain death or live donor, or vice versa';
+    END IF;
+END;
+
+//
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE TRIGGER prevent_switch_between_cardiac_and_brain_death
+BEFORE UPDATE ON your_table_name
+FOR EACH ROW
+BEGIN
+    IF NEW.odonor_status IN ('cardiac death', 'brain death') 
+    AND OLD.odonor_status IN ('cardiac death', 'brain death') 
+    AND NEW.odonor_status != OLD.odonor_status THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid status change: Cannot switch between cardiac death and brain death';
+    END IF;
+END;
+
+//
+
+DELIMITER ;
+
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetOrganDonors(
+    IN p_organ_name ENUM('Left_Kidney', 'Right_Kidney', 'Eyes', 'Heart', 'Blood', 'Liver'),
+    IN p_blood_group ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'),
+    IN p_age INT
+)
+BEGIN
+    DECLARE max_age_difference INT;
+
+    -- Determine maximum age difference based on age
+    IF p_age < 25 THEN
+        SET max_age_difference = 5;
+    ELSE
+        SET max_age_difference = 20;
+    END IF;
+
+    -- Query to retrieve organ donors based on compatibility and age difference
+    SELECT u.uid, u.name, YEAR(CURDATE()) - YEAR(u.date_of_birth) AS age, u.phone_number, u.address, 
+           o.organ_name, o.obloodgroup, o.ohla, o.omedical_history
+    FROM Users u
+    INNER JOIN Organs o ON u.uid = o.oduid
+    WHERE o.organ_name = p_organ_name
+      AND ((p_blood_group = 'A+' AND o.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+           (p_blood_group = 'A-' AND o.obloodgroup IN ('A-', 'O-')) OR
+           (p_blood_group = 'B+' AND o.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+           (p_blood_group = 'B-' AND o.obloodgroup IN ('B-', 'O-')) OR
+           (p_blood_group = 'O+' AND o.obloodgroup IN ('O+', 'O-')) OR
+           (p_blood_group = 'O-' AND o.obloodgroup = 'O-') OR
+           (p_blood_group = 'AB+' AND o.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+           (p_blood_group = 'AB-' AND o.obloodgroup IN ('A-', 'B-', 'O-', 'AB-')))
+      AND YEAR(CURDATE()) - YEAR(u.date_of_birth) BETWEEN p_age - max_age_difference AND p_age + max_age_difference;
+END//
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetOrganDonors(
+    IN p_organ_name ENUM('Left_Kidney', 'Right_Kidney', 'Eyes', 'Heart', 'Blood', 'Liver'),
+    IN p_blood_group ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'),
+    IN p_age INT
+)
+BEGIN
+    DECLARE max_age_difference INT;
+
+    -- Determine maximum age difference based on age
+    IF p_age < 25 THEN
+        SET max_age_difference = 5;
+    ELSE
+        SET max_age_difference = 20;
+    END IF;
+
+    -- Query to retrieve organ donors based on compatibility and age difference
+    SELECT JSON_ARRAYAGG(
+        JSON_OBJECT(
+            'uid', u.uid,
+            'name', u.name,
+            'age', YEAR(CURDATE()) - YEAR(u.date_of_birth),
+            'phone_number', u.phone_number,
+            'address', u.address,
+            'organ_name', o.organ_name,
+            'blood_group', o.obloodgroup,
+            'hla', o.ohla,
+            'medical_history', o.omedical_history
+        )
+    ) AS donors
+    FROM Users u
+    INNER JOIN Organs o ON u.uid = o.oduid
+    WHERE o.organ_name = p_organ_name
+      AND ((p_blood_group = 'A+' AND o.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+           (p_blood_group = 'A-' AND o.obloodgroup IN ('A-', 'O-')) OR
+           (p_blood_group = 'B+' AND o.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+           (p_blood_group = 'B-' AND o.obloodgroup IN ('B-', 'O-')) OR
+           (p_blood_group = 'O+' AND o.obloodgroup IN ('O+', 'O-')) OR
+           (p_blood_group = 'O-' AND o.obloodgroup = 'O-') OR
+           (p_blood_group = 'AB+' AND o.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+           (p_blood_group = 'AB-' AND o.obloodgroup IN ('A-', 'B-', 'O-', 'AB-')))
+      AND YEAR(CURDATE()) - YEAR(u.date_of_birth) BETWEEN p_age - max_age_difference AND p_age + max_age_difference;
+END//
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetCompatibleDonors(IN bloodGroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'))
+BEGIN
+    SELECT d.bloodgroup, p.name, p.phone_number, p.address, YEAR(CURDATE()) - YEAR(p.date_of_birth) AS age, p.omedical_history
+    FROM Donors d
+    JOIN Users p ON d.duid = p.uid
+    WHERE d.odonor_status = 'live donor' AND (
+        (bloodGroup = 'A+' AND d.bloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+        (bloodGroup = 'A-' AND d.bloodgroup IN ('A-', 'O-')) OR
+        (bloodGroup = 'B+' AND d.bloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+        (bloodGroup = 'B-' AND d.bloodgroup IN ('B-', 'O-')) OR
+        (bloodGroup = 'O+' AND d.bloodgroup IN ('O+', 'O-')) OR
+        (bloodGroup = 'O-' AND d.bloodgroup = 'O-') OR
+        (bloodGroup = 'AB+' AND d.bloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+        (bloodGroup = 'AB-' AND d.bloodgroup IN ('A-', 'B-', 'O-', 'AB-'))
+    );
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE FUNCTION GetCompatibleDonorsForBloodGroup(blood_group ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) 
+RETURNS JSON
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE donor_id INT;
+    DECLARE name VARCHAR(255);
+    DECLARE phone_number VARCHAR(20);
+    DECLARE address VARCHAR(255);
+    DECLARE age INT;
+    DECLARE omedical_history TEXT;
+    DECLARE obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE result_json JSON DEFAULT JSON_ARRAY();
+    
+    -- Declare cursor for selecting compatible donors
+    DECLARE compatible_donors CURSOR FOR
+        SELECT d.donor_id, u.name, u.phone_number, u.address, YEAR(CURDATE()) - YEAR(u.date_of_birth) AS age, u.omedical_history, u.obloodgroup
+        FROM organ d
+        JOIN Users u ON d.douid = u.uid
+        WHERE d.odonor_status = 'live donor' AND (
+            (blood_group = 'A+' AND d.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+            (blood_group = 'A-' AND d.obloodgroup IN ('A-', 'O-')) OR
+            (blood_group = 'B+' AND d.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+            (blood_group = 'B-' AND d.obloodgroup IN ('B-', 'O-')) OR
+            (blood_group = 'O+' AND d.obloodgroup IN ('O+', 'O-')) OR
+            (blood_group = 'O-' AND d.obloodgroup = 'O-') OR
+            (blood_group = 'AB+' AND d.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+            (blood_group = 'AB-' AND d.obloodgroup IN ('A-', 'B-', 'O-', 'AB-'))
+        );
+    
+    -- Declare CONTINUE HANDLER for NOT FOUND condition
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+    
+    -- Open the cursor
+    OPEN compatible_donors;
+    
+    -- Loop through the cursor results and add to JSON array
+    donor_loop: LOOP
+        FETCH compatible_donors INTO donor_id, name, phone_number, address, age, omedical_history, obloodgroup;
+        IF done = 1 THEN
+            LEAVE donor_loop;
+        END IF;
+        -- Add donor information to JSON array
+        SET result_json = JSON_ARRAY_APPEND(result_json, '$', JSON_OBJECT(
+            'donor_id', donor_id,
+            'name', name,
+            'phone_number', phone_number,
+            'address', address,
+            'age', age,
+            'omedical_history', omedical_history,
+            'obloodgroup', obloodgroup
+        ));
+    END LOOP;
+    
+    -- Close the cursor
+    CLOSE compatible_donors;
+    
+    -- Return the JSON array
+    RETURN result_json;
+END //
+
+DELIMITER ;
+
+
+corrected one 
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE donor_id INT;
+    DECLARE name VARCHAR(255);
+    DECLARE phone_number VARCHAR(20);
+    DECLARE address VARCHAR(255);
+    DECLARE age INT;
+    DECLARE omedical_history TEXT;
+    DECLARE obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE result_json JSON DEFAULT JSON_ARRAY();
+    
+    -- Declare cursor for selecting compatible donors
+    DECLARE compatible_donors CURSOR FOR
+        SELECT d.OID, u.name, u.phone_number, u.address, YEAR(CURDATE()) - YEAR(u.date_of_birth) AS age, d.omedical_history, d.obloodgroup
+        FROM organ d
+        JOIN Users u ON d.oduid = u.uid
+        WHERE d.odonor_status = 'live donor' AND (
+            (blood_group = 'A+' AND d.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+            (blood_group = 'A-' AND d.obloodgroup IN ('A-', 'O-')) OR
+            (blood_group = 'B+' AND d.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+            (blood_group = 'B-' AND d.obloodgroup IN ('B-', 'O-')) OR
+            (blood_group = 'O+' AND d.obloodgroup IN ('O+', 'O-')) OR
+            (blood_group = 'O-' AND d.obloodgroup = 'O-') OR
+            (blood_group = 'AB+' AND d.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+            (blood_group = 'AB-' AND d.obloodgroup IN ('A-', 'B-', 'O-', 'AB-'))
+        );
+    
+    -- Declare CONTINUE HANDLER for NOT FOUND condition
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+    
+    -- Open the cursor
+    OPEN compatible_donors;
+    
+    -- Loop through the cursor results and add to JSON array
+    donor_loop: LOOP
+        FETCH compatible_donors INTO donor_id, name, phone_number, address, age, omedical_history, obloodgroup;
+        IF done = 1 THEN
+            LEAVE donor_loop;
+        END IF;
+        -- Add donor information to JSON array
+        SET result_json = JSON_ARRAY_APPEND(result_json, '$', JSON_OBJECT(
+            'donor_id', donor_id,
+            'name', name,
+            'phone_number', phone_number,
+            'address', address,
+            'age', age,
+            'omedical_history', omedical_history,
+            'obloodgroup', obloodgroup
+        ));
+    END LOOP;
+    
+    -- Close the cursor
+    CLOSE compatible_donors;
+    
+    -- Return the JSON array
+    RETURN result_json;
+END
+
+
+
+DELIMITER //
+
+CREATE FUNCTION getCompatibleOrganDonors(
+    organName ENUM('Left_Kidney', 'Right_Kidney', 'Eyes', 'Heart', 'Blood', 'Liver'),
+    bloodGroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'),
+    donorAge INT
+)
+RETURNS JSON
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE donor_id INT;
+    DECLARE name VARCHAR(255);
+    DECLARE phone_number VARCHAR(20);
+    DECLARE address VARCHAR(255);
+    DECLARE omedical_history TEXT;
+    DECLARE obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE organ_ohla VARCHAR(255);
+    DECLARE organ_obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE age INT;  -- Declare age variable outside the cursor
+
+    DECLARE result_json JSON DEFAULT JSON_ARRAY();
+
+    -- Declare cursor for selecting compatible organ donors
+    DECLARE compatible_organ_donors CURSOR FOR
+        SELECT d.OID, u.name, u.phone_number, u.address, YEAR(CURDATE()) - YEAR(u.date_of_birth) AS donor_age, d.omedical_history, d.obloodgroup, d.ohla
+        FROM organ d
+        JOIN users u ON d.oduid = u.uid
+        WHERE d.organ_availability = 1 
+            AND d.organ_name = organName
+            AND ABS(YEAR(CURDATE()) - YEAR(u.date_of_birth) - donorAge) <= 
+                CASE
+                    WHEN donorAge < 25 THEN 10
+                    ELSE 20
+                END
+            AND (
+                (bloodGroup = 'O+' AND d.obloodgroup IN ('O+', 'O-')) OR
+                (bloodGroup = 'O-' AND d.obloodgroup = 'O-') OR
+                (bloodGroup = 'A+' AND d.obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+                (bloodGroup = 'A-' AND d.obloodgroup IN ('A-', 'O-')) OR
+                (bloodGroup = 'B+' AND d.obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+                (bloodGroup = 'B-' AND d.obloodgroup IN ('B-', 'O-')) OR
+                (bloodGroup = 'AB+' AND d.obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+                (bloodGroup = 'AB-' AND d.obloodgroup IN ('A-', 'B-', 'O-', 'AB-'))
+            );
+
+    -- Declare CONTINUE HANDLER for NOT FOUND condition
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+    -- Open the cursor
+    OPEN compatible_organ_donors;
+
+    -- Loop through the cursor results and add to JSON array
+    organ_donor_loop:LOOP
+        FETCH compatible_organ_donors INTO donor_id, name, phone_number, address, age, omedical_history, obloodgroup, organ_ohla;
+        IF done = 1 THEN
+            LEAVE organ_donor_loop;
+        END IF;
+        -- Add donor and organ information to JSON array
+        SET result_json = JSON_ARRAY_APPEND(result_json, '$', JSON_OBJECT(
+            'donor_id', donor_id,
+            'name', name,
+            'phone_number', phone_number,
+            'address', address,
+            'age', donor_age,  -- Use donor_age instead of age
+            'omedical_history', omedical_history,
+            'obloodgroup', obloodgroup,
+            'organ_ohla', organ_ohla,
+            'organ_obloodgroup', organ_obloodgroup
+        ));
+    END LOOP;
+
+    -- Close the cursor
+    CLOSE compatible_organ_donors;
+
+    -- Return the JSON array
+    RETURN result_json;
+END//
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE AllocateOrgan(p_receiver_id INT)
+BEGIN
+    DECLARE v_oid INT;
+    DECLARE v_obloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE v_oage INT;
+    DECLARE v_rage INT;
+    DECLARE v_rbloodgroup ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-');
+    DECLARE v_rorgan_name ENUM('Left_Kidney', 'Right_Kidney', 'Eyes', 'Heart', 'Blood', 'Liver');
+    DECLARE organ_name ENUM('Left_Kidney', 'Right_Kidney', 'Eyes', 'Heart', 'Blood', 'Liver');
+    DECLARE v_match_found BOOLEAN DEFAULT FALSE;
+
+    -- Get receiver information
+    SELECT rbloodgroup, rage, rorgan_name
+    INTO v_rbloodgroup, v_rage, v_rorgan_name
+    FROM receiver
+    WHERE receiver_id = p_receiver_id;
+
+    -- Check if organ is already allocated
+    IF EXISTS (SELECT 1 FROM receiver WHERE roid = p_receiver_id AND date_of_allocation IS NOT NULL) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Organ already allocated to this receiver.';
+    ELSE
+        -- Find suitable match in organ table
+        SET v_match_found = FALSE;
+        SET v_oid = NULL;
+
+        organ_loop: WHILE v_match_found = FALSE DO
+            SELECT oid, obloodgroup, oage, organ_name
+            INTO v_oid, v_obloodgroup, v_oage, v_rorgan_name
+            FROM organ
+            WHERE organ_availability = 1
+            LIMIT 1;
+
+            IF v_oid IS NULL THEN
+                LEAVE organ_loop;
+            END IF;
+
+            IF v_rorgan_name = organ_name AND
+               ((v_rbloodgroup = 'O+' AND v_obloodgroup IN ('O+', 'O-')) OR
+                (v_rbloodgroup = 'O-' AND v_obloodgroup = 'O-') OR
+                (v_rbloodgroup = 'A+' AND v_obloodgroup IN ('A+', 'A-', 'O+', 'O-')) OR
+                (v_rbloodgroup = 'A-' AND v_obloodgroup IN ('A-', 'O-')) OR
+                (v_rbloodgroup = 'B+' AND v_obloodgroup IN ('B+', 'B-', 'O+', 'O-')) OR
+                (v_rbloodgroup = 'B-' AND v_obloodgroup IN ('B-', 'O-')) OR
+                (v_rbloodgroup = 'AB+' AND v_obloodgroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')) OR
+                (v_rbloodgroup = 'AB-' AND v_obloodgroup IN ('A-', 'B-', 'O-', 'AB-')))
+            THEN
+                IF v_rage < 25 AND ABS(v_rage - v_oage) <= 10 OR
+                   v_rage >= 25 AND ABS(v_rage - v_oage) <= 20
+                THEN
+                    -- Allocate the organ
+                    UPDATE receiver SET roid = v_oid, date_of_allocation = CURDATE() WHERE receiver_id = p_receiver_id;
+                    UPDATE organ SET organ_availability = 0 WHERE oid = v_oid;
+                    SET v_match_found = TRUE;
+                END IF;
+            END IF;
+        END WHILE organ_loop;
+
+        -- No suitable match found
+        IF v_match_found = FALSE THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No organ match found.';
+        ELSE
+            SELECT CONCAT('Organ allocated successfully! OID: ', v_oid) AS message;
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+
